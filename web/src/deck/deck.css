@@ -1,0 +1,7 @@
+@import "../app/globals.css";
+@source "../components";
+@source "../deck";
+
+html {
+  scroll-snap-type: y proximity;
+}

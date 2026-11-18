@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "sketch" text DEFAULT '' NOT NULL;

@@ -1,0 +1,50 @@
+# Footprints imported from the official KiCad library (scripts/kicad-import.py).
+# Lab parts that become real chips on the board:
+Diode_SMD/D_SOD-123                       # diode: 1N4148W
+Package_TO_SOT_SMD/SOT-23                 # npn: MMBT2222A, mosfet: AO3400A
+Package_DIP/DIP-16_W7.62mm                # l293d: L293D
+Package_SO/SOIC-16_3.9x9.9mm_P1.27mm      # sr595: 74HC595D
+Package_TO_SOT_SMD/TO-252-2               # lm7805: L7805CDT (DPAK)
+Package_SO/SOIC-16W_7.5x10.3mm_P1.27mm    # rtc: DS3231SN
+Sensor_Motion/InvenSense_QFN-24_4x4mm_P0.5mm  # mpu6050: MPU-6050
+Package_TO_SOT_THT/TO-92_Inline           # ds18b20: DS18B20
+Sensor/Aosong_DHT11_5.5x12.0_P2.54mm      # dht: DHT11/DHT22 module body
+Buzzer_Beeper/Buzzer_12x9.5RM7.6          # buzzer
+OptoDevice/R_LDR_5.1x4.3mm_P3.4mm_Vertical  # ldr
+Resistor_SMD/R_0603_1608Metric            # ntc: 0603 NTC thermistor
+Potentiometer_THT/Potentiometer_Bourns_3386W_Horizontal  # pot: 3386W (KiCad has no 3386P model)
+Package_DFN_QFN/DFN-8-1EP_2x2mm_P0.5mm_EP0.9x1.3mm  # max17048: MAX17048 (TDFN-8 2x2)
+
+# General library for the editor and future designs:
+Package_SO/SOIC-8_3.9x4.9mm_P1.27mm
+Package_SO/SOIC-14_3.9x8.7mm_P1.27mm
+Package_SO/TSSOP-14_4.4x5mm_P0.65mm
+Package_SO/TSSOP-16_4.4x5mm_P0.65mm
+Package_SO/TSSOP-20_4.4x6.5mm_P0.65mm
+Package_DIP/DIP-8_W7.62mm
+Package_DIP/DIP-14_W7.62mm
+Package_QFP/TQFP-32_7x7mm_P0.8mm          # ATmega328P-AU (Arduino Uno's chip)
+Package_QFP/LQFP-48_7x7mm_P0.5mm
+Package_DFN_QFN/QFN-32-1EP_5x5mm_P0.5mm_EP3.45x3.45mm
+Package_TO_SOT_SMD/SOT-223-3_TabPin2      # AMS1117 regulators
+Package_TO_SOT_SMD/SOT-89-3
+Package_TO_SOT_SMD/SOT-23-3
+Diode_SMD/D_SOD-323
+Diode_SMD/D_SMA
+Diode_SMD/D_SMB
+LED_SMD/LED_0805_2012Metric
+LED_SMD/LED_1206_3216Metric
+Resistor_SMD/R_1206_3216Metric
+Capacitor_SMD/C_1206_3216Metric
+Capacitor_SMD/C_1210_3225Metric
+Capacitor_SMD/CP_Elec_6.3x5.4
+Inductor_SMD/L_0805_2012Metric
+Inductor_SMD/L_1210_3225Metric
+Crystal/Crystal_SMD_3225-4Pin_3.2x2.5mm
+Crystal/Crystal_SMD_HC49-SD
+Fuse/Fuse_1206_3216Metric
+Connector_JST/JST_PH_S3B-PH-K_1x03_P2.00mm_Horizontal
+Connector_JST/JST_PH_S4B-PH-K_1x04_P2.00mm_Horizontal
+Connector_USB/USB_Micro-B_Molex_47346-0001
+Button_Switch_SMD/SW_SPST_PTS645Sx43SMTR92
+Relay_THT/Relay_SPDT_SANYOU_SRD_Series_Form_C

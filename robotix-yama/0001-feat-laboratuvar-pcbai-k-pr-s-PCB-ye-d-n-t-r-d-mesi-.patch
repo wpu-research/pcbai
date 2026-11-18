@@ -1,0 +1,155 @@
+From f1bb777d97e5c8a586e5b288ec583330023c68a4 Mon Sep 17 00:00:00 2001
+From: wpu-research <research@wpu.edu.tr>
+Date: Sun, 25 Oct 2026 05:53:41 +0200
+Subject: [PATCH] =?UTF-8?q?feat(laboratuvar):=20pcbai=20k=C3=B6pr=C3=BCs?=
+ =?UTF-8?q?=C3=BC=20=E2=80=94=20PCB'ye=20d=C3=B6n=C3=BC=C5=9Ft=C3=BCr=20d?=
+ =?UTF-8?q?=C3=BC=C4=9Fmesi=20ve=20#pcbai=3D=20ile=20devre=20y=C3=BCkleme?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Laboratuvar sayfasındaki serbest editöre iki yönlü köprü eklenir:
+- 'PCB'ye dönüştür' düğmesi devreyi ve kodu pcbai'nin /aktar sayfasına
+  URL parçasında (base64url JSON, sunucuya gitmez) gönderir.
+- #pcbai=<base64url> ile açılan sayfa, pcbai Devre Atölyesi'nin ürettiği
+  devreyi ve kodu yükler; parça/kablo doğrulaması mevcut isCircuit +
+  normalizeCircuit ile yapılır.
+Adres NEXT_PUBLIC_PCBAI_URL ile değiştirilebilir.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ apps/web/src/app/globals.css               |  2 ++
+ apps/web/src/app/laboratuvar/page.tsx      |  2 +-
+ apps/web/src/components/lab/lab-editor.tsx | 39 +++++++++++++++++++++-
+ apps/web/src/i18n/en/lab.ts                |  3 ++
+ apps/web/src/i18n/tr/lab.ts                |  3 ++
+ 5 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/apps/web/src/app/globals.css b/apps/web/src/app/globals.css
+index 6070a44..6347275 100644
+--- a/apps/web/src/app/globals.css
++++ b/apps/web/src/app/globals.css
+@@ -524,6 +524,8 @@ a.mcard:hover { text-decoration: none; transform: translateY(-2px); box-shadow:
+ .lab-simbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 10px; background: #111827; color: #e5e7eb; border-radius: 14px; }
+ .lab-ctl { display: flex; gap: 8px; align-items: center; }
+ .lab-round { width: 40px; height: 40px; border-radius: 50%; border: 0; background: #374151; color: #f9fafb; font: inherit; font-size: 1.05rem; line-height: 1; cursor: pointer; display: inline-grid; place-items: center; padding: 0; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
++.lab-pcb { height: 40px; padding: 0 14px; border-radius: 20px; border: 0; background: #0f6d80; color: #f9fafb; font: inherit; font-size: .9rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 0 rgba(0, 0, 0, .35); white-space: nowrap; }
++.lab-pcb:hover { background: #12839a; }
+ .lab-round:hover:not(:disabled) { background: #4b5563; }
+ .lab-round:disabled { opacity: .4; cursor: not-allowed; }
+ .lab-round.go { background: #16a34a; }
+diff --git a/apps/web/src/app/laboratuvar/page.tsx b/apps/web/src/app/laboratuvar/page.tsx
+index 51581bb..3aac795 100644
+--- a/apps/web/src/app/laboratuvar/page.tsx
++++ b/apps/web/src/app/laboratuvar/page.tsx
+@@ -95,7 +95,7 @@ export default async function Laboratuvar({ searchParams }: { searchParams: Sear
+         <p className="muted">{t('lab.page.intro')}</p>
+       </header>
+       <div className="tool-body">
+-        <LabEditor initial={START} initialCode={BLINK} storageKey="ask:lab:sandbox" />
++        <LabEditor initial={START} initialCode={BLINK} storageKey="ask:lab:sandbox" pcbBridge />
+       </div>
+     </div>
+   )
+diff --git a/apps/web/src/components/lab/lab-editor.tsx b/apps/web/src/components/lab/lab-editor.tsx
+index d60292f..962220f 100644
+--- a/apps/web/src/components/lab/lab-editor.tsx
++++ b/apps/web/src/components/lab/lab-editor.tsx
+@@ -24,6 +24,8 @@ import { SerialMonitor } from './serial-monitor'
+ export { STAGE_A_PARTS, STAGE_B_PARTS, DEFAULT_PARTS }
+ 
+ export interface LabEditorProps {
++  /** Laboratuvar sayfasında: pcbai'ye 'PCB'ye dönüştür' düğmesi ve #pcbai= ile gelen devreyi yükleme. */
++  pcbBridge?: boolean
+   initial: Circuit
+   initialCode: string
+   allowedParts?: PartType[]
+@@ -45,7 +47,23 @@ type CompileView =
+ 
+ const FLASH_MAX = 32256, RAM_MAX = 2048
+ 
+-export function LabEditor({ initial, initialCode, allowedParts = DEFAULT_PARTS, lockedPartIds, goals, storageKey, onGoalsComplete, compact }: LabEditorProps) {
++const PCBAI_URL = process.env.NEXT_PUBLIC_PCBAI_URL || 'https://pcbai-web-production.up.railway.app'
++
++/** pcbai ile değiş tokuş biçimi: URL parçasında base64url JSON (sunucuya hiç gitmez). */
++function encodeBridge(x: unknown): string {
++  const bytes = new TextEncoder().encode(JSON.stringify(x))
++  let s = ''
++  for (const b of bytes) s += String.fromCharCode(b)
++  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
++}
++function decodeBridge(s: string): { circuit?: unknown; code?: unknown } | null {
++  try {
++    const b64 = s.replace(/-/g, '+').replace(/_/g, '/')
++    return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))))
++  } catch { return null }
++}
++
++export function LabEditor({ initial, initialCode, allowedParts = DEFAULT_PARTS, lockedPartIds, goals, storageKey, onGoalsComplete, compact, pcbBridge }: LabEditorProps) {
+   const t = useT()
+   const locale = useLocale()
+   const tRef = useRef(t); tRef.current = t
+@@ -109,6 +127,22 @@ export function LabEditor({ initial, initialCode, allowedParts = DEFAULT_PARTS,
+     return () => clearTimeout(t)
+   }, [circuit, code, storageKey, loaded])
+ 
++  // ---- pcbai köprüsü: #pcbai=<base64url JSON> ile gelen devre ve kod (Devre Atölyesi'nden) ----
++  useEffect(() => {
++    if (!pcbBridge || !loaded || !location.hash.startsWith('#pcbai=')) return
++    const got = decodeBridge(location.hash.slice(7))
++    history.replaceState(null, '', location.pathname + location.search)
++    if (!got || !isCircuit(got.circuit)) return
++    setCircuit(normalizeCircuit(got.circuit))
++    if (typeof got.code === 'string') setCode(got.code)
++    setFitKey((k) => k + 1)
++    say(tRef.current('lab.editor.pcbImported'))
++  }, [pcbBridge, loaded, say])
++  const toPcb = useCallback(() => {
++    const url = `${PCBAI_URL}/aktar#${encodeBridge({ v: 1, source: 'macademiax-lab', circuit: circuitRef.current, code: codeRef.current })}`
++    window.open(url, '_blank', 'noopener')
++  }, [])
++
+   // ---- hedefler ----
+   const analysis = useMemo(() => analyze(circuit), [circuit])
+   const evalGoals = useCallback(() => {
+@@ -342,6 +376,9 @@ export function LabEditor({ initial, initialCode, allowedParts = DEFAULT_PARTS,
+                 type="button" className="lab-round" aria-pressed={muted} aria-label={muted ? t('lab.editor.unmute') : t('lab.editor.mute')} title={muted ? t('lab.editor.unmute') : t('lab.editor.mute')}
+                 onClick={() => { const m = !isBuzzerMuted(); setBuzzerMuted(m); setMutedState(m) }}
+               >{muted ? '🔇' : '🔊'}</button>
++              {pcbBridge && (
++                <button type="button" className="lab-pcb" data-testid="lab-to-pcb" onClick={toPcb} title={t('lab.editor.toPcbTitle')}>{t('lab.editor.toPcb')} ↗</button>
++              )}
+             </div>
+             <div className={`lab-meter${running && !paused ? ' on' : ''}`} role="status" aria-label={t('lab.editor.simStatus')}>
+               <span className="lab-state" data-testid="lab-status">{statusText}</span>
+diff --git a/apps/web/src/i18n/en/lab.ts b/apps/web/src/i18n/en/lab.ts
+index d02239c..877b05d 100644
+--- a/apps/web/src/i18n/en/lab.ts
++++ b/apps/web/src/i18n/en/lab.ts
+@@ -30,6 +30,9 @@ export const lab = {
+     reset: 'Reset (including burnt LEDs)',
+     mute: 'Mute',
+     unmute: 'Unmute',
++    toPcb: 'Turn into a PCB',
++    toPcbTitle: 'Turn this circuit into a printed circuit board on pcbai',
++    pcbImported: 'Circuit and code loaded from the pcbai Circuit Workshop.',
+     simStatus: 'Simulation status',
+     simSpeed: 'Simulation speed',
+     status: {
+diff --git a/apps/web/src/i18n/tr/lab.ts b/apps/web/src/i18n/tr/lab.ts
+index f1efd2e..eb7174d 100644
+--- a/apps/web/src/i18n/tr/lab.ts
++++ b/apps/web/src/i18n/tr/lab.ts
+@@ -31,6 +31,9 @@ export const lab = {
+     reset: 'Sıfırla (yanmış LED dahil)',
+     mute: 'Sesi kapat',
+     unmute: 'Sesi aç',
++    toPcb: 'PCB’ye dönüştür',
++    toPcbTitle: 'Bu devreyi pcbai’de baskı devre kartına dönüştür',
++    pcbImported: 'Devre ve kod pcbai Devre Atölyesi’nden yüklendi.',
+     simStatus: 'Benzetim durumu',
+     simSpeed: 'Benzetim hızı',
+     status: {
+-- 
+2.34.1
+
